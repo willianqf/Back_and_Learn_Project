@@ -8,10 +8,13 @@ import pytesseract
 import io
 
 # --- CONFIGURAÇÃO DO TESSERACT ---
-# Apenas estas duas linhas são necessárias. A variável de ambiente TESSDATA_PREFIX
-# é a forma padrão de dizer ao Tesseract onde encontrar seus dados de idioma.
-os.environ['TESSDATA_PREFIX'] = r'C:\Program Files\Tesseract-OCR\tessdata'
-pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+# 1. REMOVEMOS AS LINHAS COM O CAMINHO DO WINDOWS.
+# O pytesseract encontrará o Tesseract automaticamente no servidor Linux,
+# pois ele foi instalado pelo nosso Dockerfile.
+#
+# LINHAS REMOVIDAS:
+# os.environ['TESSDATA_PREFIX'] = r'C:\Program Files\Tesseract-OCR\tessdata'
+# pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
 
 def extrair_texto_de_pdf_imagem(caminho_do_pdf):
@@ -30,14 +33,13 @@ def extrair_texto_de_pdf_imagem(caminho_do_pdf):
             print(f"   📄 Processando página {numero_pagina}/{total_paginas}...")
             
             pagina = documento.load_page(i)
-            pix = pagina.get_pixmap(dpi=300)
+            # Aumentar o DPI pode melhorar a qualidade do OCR
+            pix = pagina.get_pixmap(dpi=300) 
             bytes_imagem = pix.tobytes("png")
             imagem_pil = Image.open(io.BytesIO(bytes_imagem))
             
             try:
-                # ## CORREÇÃO PRINCIPAL AQUI ##
-                # Removemos o parâmetro 'config' redundante.
-                # O pytesseract usará automaticamente a variável de ambiente TESSDATA_PREFIX que definimos acima.
+                # Agora o pytesseract usará o Tesseract instalado no sistema
                 texto = pytesseract.image_to_string(imagem_pil, lang='por')
                 
                 if texto.strip():
@@ -59,8 +61,6 @@ def extrair_texto_de_pdf_imagem(caminho_do_pdf):
     return textos_extraidos
 
 
-# O resto do arquivo (as funções 'gerar_audios_de_lista' e 'processar_pdf_para_audio')
-# pode permanecer exatamente como estava na versão anterior.
 def gerar_audios_de_lista(lista_de_textos, nome_base_arquivo, diretorio_saida):
     caminhos_audio = []
     if not lista_de_textos: return caminhos_audio
