@@ -5,7 +5,6 @@ FROM python:3.10-slim
 WORKDIR /app
 
 # 3. Atualizar o sistema e instalar as dependências do sistema (Tesseract OCR)
-# Esta é a parte mais importante para o seu projeto!
 RUN apt-get update && apt-get install -y \
     tesseract-ocr \
     tesseract-ocr-por \
@@ -19,9 +18,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 5. Copiar todo o resto do código do seu projeto para o contêiner
 COPY . .
 
-# 6. Expor a porta que o Flask vai usar (geralmente 8080 em produção)
+# 6. Expor a porta que o Flask vai usar
 EXPOSE 8080
 
-# 7. Definir o comando para iniciar a aplicação com Gunicorn
-# Isso vai procurar por uma variável 'app' no arquivo 'app.py'
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "app:app"]
+# 7. Definir o comando para iniciar a aplicação com Gunicorn e um timeout maior
+# Aumentamos o timeout para 120 segundos para dar tempo de processar os lotes.
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--timeout", "120", "app:app"]
