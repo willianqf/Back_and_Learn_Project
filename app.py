@@ -22,7 +22,6 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 @app.route('/iniciar_processamento', methods=['POST'])
 def iniciar_processamento():
-    # Este endpoint continua igual
     try:
         if 'file' not in request.files:
             return jsonify({'erro': 'Nenhum arquivo enviado'}), 400
@@ -53,6 +52,7 @@ def iniciar_processamento():
     except Exception as e:
         print(f"Erro em /iniciar_processamento: {e}")
         return jsonify({'erro': 'Erro interno ao iniciar o processamento.'}), 500
+
 @app.route('/obter_texto_pagina', methods=['POST'])
 def obter_texto_pagina():
     if not OCR_API_KEY:
@@ -71,8 +71,8 @@ def obter_texto_pagina():
             return jsonify({'erro': 'Arquivo não encontrado no servidor'}), 404
         
         # --- MUDANÇA PRINCIPAL AQUI ---
-        # O try/except agora está focado na função que pode falhar.
-        texto_extraido = processador_pdf.extrair_texto_pagina_com_api(
+        # Chamamos a nova função principal do processador
+        texto_extraido = processador_pdf.extrair_texto_pagina(
             caminho_pdf,
             numero_pagina,
             OCR_API_KEY
@@ -81,18 +81,29 @@ def obter_texto_pagina():
         return jsonify({'status': 'sucesso', 'texto': texto_extraido})
 
     except Exception as e:
-        # Se a função do processador levantar uma exceção, nós a capturamos
-        # e retornamos um erro 500 (Erro Interno do Servidor) para o frontend.
         print(f"Erro final no endpoint /obter_texto_pagina: {e}")
         return jsonify({'erro': str(e)}), 500
 
 # A lógica de limpeza continua igual
 def cleanup_old_files():
     print("Executando a tarefa de limpeza...")
-    # ... (código da limpeza sem alterações)
+    now = time.time()
+    for filename in os.listdir(UPLOAD_FOLDER):
+        file_path = os.path.join(UPLOAD_FOLDER, filename)
+        try:
+            if os.path.isfile(file_path):
+                file_age = now - os.path.getmtime(file_path)
+                if file_age > FILE_LIFETIME_SECONDS:
+                    os.remove(file_path)
+                    print(f"Arquivo antigo removido: {filename}")
+        except Exception as e:
+            print(f"Erro ao limpar o arquivo {filename}: {e}")
 
 scheduler = BackgroundScheduler(daemon=True)
 scheduler.add_job(func=cleanup_old_files, trigger="interval", minutes=30)
 scheduler.start()
 import atexit
 atexit.register(lambda: scheduler.shutdown())
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=8080)
