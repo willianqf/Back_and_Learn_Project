@@ -18,6 +18,10 @@ CORS(app)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+print("Iniciando o carregamento do modelo Whisper no startup da aplicação...")
+transcritor_audio.carregar_modelo()
+print("✅ Modelo carregado e pronto para uso.")
+
 # ... (Rotas existentes /iniciar_processamento, /uploads, /obter_dados_pagina, /transcrever_audio não mudam) ...
 @app.route('/iniciar_processamento', methods=['POST'])
 def iniciar_processamento():
@@ -135,21 +139,13 @@ atexit.register(lambda: scheduler.shutdown())
 @app.route('/health', methods=['GET'])
 def health_check():
     """
-    Endpoint para manter o servidor ativo e o modelo Whisper aquecido.
+    Endpoint leve para verificar a saúde do servidor.
     """
-    # A primeira vez que esta rota for chamada, ela irá carregar o modelo.
-    # Nas chamadas seguintes, ela apenas retornará o modelo já carregado.
-    modelo = transcritor_audio.carregar_modelo()
-    
-    status_modelo = "carregado"
-    if isinstance(modelo, dict) and "error" in modelo:
-        status_modelo = f"erro: {modelo['error']}"
-    elif modelo is None:
-        status_modelo = "nao carregado"
+    # Apenas verifica o estado da variável global do modelo, não tenta carregar.
+    modelo = transcritor_audio.model 
+    status_modelo = "carregado" if modelo and not isinstance(modelo, dict) else "erro ou nao carregado"
 
-    print("🩺 Health Check: Verificando status do modelo.")
     return jsonify({'status': 'ok', 'model_status': status_modelo}), 200
-# --- FIM DA CORREÇÃO ---
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080)
