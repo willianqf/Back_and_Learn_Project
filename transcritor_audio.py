@@ -15,7 +15,7 @@ def carregar_modelo():
         try:
             print("🧠 Carregando o modelo Whisper (modelo: base) pela primeira vez...")
             # Usamos 'base' pois o servidor agora iniciará rápido.
-            model = whisper.load_model("base")
+            model = whisper.load_model("tiny")
             print("✅ Modelo Whisper carregado com sucesso.")
         except Exception as e:
             print(f"❌ Erro crítico ao carregar o modelo Whisper: {e}")
