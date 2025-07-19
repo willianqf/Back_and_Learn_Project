@@ -12,11 +12,19 @@ RUN apt-get update && apt-get install -y ffmpeg \
 COPY requirements.txt requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 5. Copiar o resto do código
+# --- INÍCIO DA MODIFICAÇÃO ---
+# 5. Copiar APENAS o script de download e baixá-lo.
+# Isso otimiza o cache do Docker. O modelo só será baixado novamente
+# se o requirements.txt ou o download_model.py mudarem.
+COPY download_model.py .
+RUN python download_model.py
+# --- FIM DA MODIFICAÇÃO ---
+
+# 6. Copiar o resto do código da aplicação
 COPY . .
 
-# 6. Expor a porta
+# 7. Expor a porta
 EXPOSE 8080
 
-# 7. Comando para iniciar a aplicação
+# 8. Comando para iniciar a aplicação
 CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--timeout", "120", "app:app"]
