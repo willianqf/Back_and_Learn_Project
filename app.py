@@ -134,7 +134,22 @@ atexit.register(lambda: scheduler.shutdown())
 
 @app.route('/health', methods=['GET'])
 def health_check():
-    return jsonify({'status': 'ok'}), 200
+    """
+    Endpoint para manter o servidor ativo e o modelo Whisper aquecido.
+    """
+    # A primeira vez que esta rota for chamada, ela irá carregar o modelo.
+    # Nas chamadas seguintes, ela apenas retornará o modelo já carregado.
+    modelo = transcritor_audio.carregar_modelo()
+    
+    status_modelo = "carregado"
+    if isinstance(modelo, dict) and "error" in modelo:
+        status_modelo = f"erro: {modelo['error']}"
+    elif modelo is None:
+        status_modelo = "nao carregado"
+
+    print("🩺 Health Check: Verificando status do modelo.")
+    return jsonify({'status': 'ok', 'model_status': status_modelo}), 200
+# --- FIM DA CORREÇÃO ---
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080)
