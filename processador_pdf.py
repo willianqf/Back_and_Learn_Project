@@ -4,7 +4,6 @@ import os
 import fitz  # PyMuPDF
 import requests
 import time
-from langdetect import detect, LangDetectException # NOVO: Importa o detector de idioma
 
 def contar_paginas_pdf(caminho_do_pdf):
     try:
@@ -15,6 +14,8 @@ def contar_paginas_pdf(caminho_do_pdf):
         return 0
 
 def extrair_texto_pagina_com_ocr(caminho_do_pdf, numero_pagina, api_key):
+    # Esta função de fallback continua a mesma, pois o OCR não retorna coordenadas.
+    # Ela será usada para PDFs que são apenas imagens.
     doc = None
     try:
         doc = fitz.open(caminho_do_pdf)
@@ -48,21 +49,12 @@ def extrair_texto_pagina_com_ocr(caminho_do_pdf, numero_pagina, api_key):
 
             texto_extraido = resultado['ParsedResults'][0]['ParsedText']
             print(f"Texto da página {numero_pagina} recebido da API com sucesso.")
-            
-            # NOVO: Adiciona a detecção de idioma também para o OCR
-            idioma_detectado = 'desconhecido'
-            try:
-                if texto_extraido and len(texto_extraido.strip()) > 50:
-                    idioma_detectado = detect(texto_extraido)
-            except LangDetectException:
-                print("Não foi possível detectar o idioma do texto do OCR.")
-
+            # Retorna no formato esperado, mas sem coordenadas
             return {
                 "texto_completo": texto_extraido.strip(),
                 "palavras": [],
                 "dimensoes": {"largura": 0, "altura": 0},
-                "extraido_por_ocr": True,
-                "idioma": idioma_detectado # Retorna o idioma
+                "extraido_por_ocr": True
             }
 
         except requests.exceptions.RequestException as e:
@@ -74,7 +66,8 @@ def extrair_texto_pagina_com_ocr(caminho_do_pdf, numero_pagina, api_key):
 
 def extrair_dados_completos_pagina(caminho_do_pdf, numero_pagina, api_key):
     """
-    Função principal atualizada para detectar o idioma.
+    Função principal atualizada.
+    Extrai o texto completo para fala e uma lista de palavras com suas coordenadas.
     """
     try:
         doc = fitz.open(caminho_do_pdf)
@@ -83,38 +76,37 @@ def extrair_dados_completos_pagina(caminho_do_pdf, numero_pagina, api_key):
 
         page = doc.load_page(numero_pagina - 1)
         
+        # 1. Extrai a lista de palavras com coordenadas (x0, y0, x1, y1, word, block_no, line_no, word_no)
         lista_palavras = page.get_text("words")
         
+        # Se o PDF tiver texto embutido, `lista_palavras` terá conteúdo
         if lista_palavras and len(lista_palavras) > 5:
             print(f"Extraindo dados da página {numero_pagina} diretamente do PDF.")
             
+            # Formata os dados para enviar como JSON
             palavras_com_coords = [
-                {"texto": p[4], "coords": {"x0": p[0], "y0": p[1], "x1": p[2], "y1": p[3]}}
+                {
+                    "texto": p[4],
+                    "coords": {"x0": p[0], "y0": p[1], "x1": p[2], "y1": p[3]}
+                }
                 for p in lista_palavras
             ]
 
+            # Extrai o texto completo para o expo-speech
             texto_completo = page.get_text("text")
+            
+            # Obtém as dimensões da página
             dimensoes = {"largura": page.rect.width, "altura": page.rect.height}
             
-            # NOVO: Bloco para detectar o idioma
-            idioma_detectado = 'desconhecido'
-            try:
-                # Tenta detectar apenas se houver uma quantidade razoável de texto
-                if texto_completo and len(texto_completo.strip()) > 50:
-                    idioma_detectado = detect(texto_completo)
-                    print(f"Idioma detectado na página {numero_pagina}: {idioma_detectado}")
-            except LangDetectException:
-                print(f"Não foi possível detectar o idioma na página {numero_pagina}.")
-
             doc.close()
             return {
                 "texto_completo": texto_completo.strip(),
                 "palavras": palavras_com_coords,
                 "dimensoes": dimensoes,
-                "extraido_por_ocr": False,
-                "idioma": idioma_detectado # Adiciona o idioma à resposta
+                "extraido_por_ocr": False
             }
         else:
+            # Fallback para OCR se não houver texto embutido
             print(f"Página {numero_pagina} não contém texto direto. Usando OCR.")
             doc.close()
             return extrair_texto_pagina_com_ocr(caminho_do_pdf, numero_pagina, api_key)
